@@ -21,7 +21,7 @@ jobs:
         pip install
         build
         --user
-    - name: Install requirements and build a binary wheel and a source tarball
+    - name: Install requirements
       run: >-
         python -m
         pip install
