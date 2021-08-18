@@ -1,5 +1,4 @@
-import time
-import boto3, logging, os
+import logging
 from time import perf_counter
 from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
