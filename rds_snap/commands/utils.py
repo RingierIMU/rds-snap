@@ -4,7 +4,7 @@ from rds_snap.commands.waiters import (
     get_rds_cluster,
     get_rds_snapshot,
 )
-import boto3, logging, os
+import boto3, logging
 
 
 def get_session(profile: str) -> boto3.Session:

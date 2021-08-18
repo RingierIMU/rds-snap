@@ -1,6 +1,4 @@
-from rds_snap.commands.waiters import get_rds_cluster
 import click
-from pprint import pprint
 from .utils import destroy_cluster, get_rds_clusters, get_rds_client, restore_cluster
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])

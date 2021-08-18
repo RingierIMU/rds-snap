@@ -1,7 +1,5 @@
-from logging import error
 from rds_snap.commands.waiters import get_rds_snapshot, seconds_to_duration
 import click
-from pprint import pprint
 from .utils import (
     copy_rds_snapshot,
     get_kms_arn,
