@@ -30,6 +30,7 @@ $(VENV)/bin/activate: requirements_dev.txt requirements.txt
 
 build: $(VENV)/bin/activate
 	$(PYTHON) setup.py build
+	# $(PYTHON) -m build --sdist --wheel --outdir dist/ .
 
 dist: $(VENV)/bin/activate
 	$(PYTHON) setup.py sdist bdist_wheel
