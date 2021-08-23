@@ -33,7 +33,7 @@ $ make dev
 This will create an environment, format and build the tool.
 
 # Usage
-The [example shell script](./examples/example.sh) outlines some common uses.
+The [example shell script](https://github.com/RingierIMU/rds-snap/blob/main/examples/example.sh) outlines some common uses.
 
 # Output
 Sample output while recreating a cluster from and snapshot:
