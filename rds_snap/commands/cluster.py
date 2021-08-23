@@ -1,6 +1,8 @@
-import click
 from .utils import destroy_cluster, get_rds_clusters, get_rds_client, restore_cluster
+import logging, click, click_log
 
+logger = logging.getLogger()
+logger.setLevel(logging.ERROR)
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
@@ -16,6 +18,11 @@ def cluster():
 @click.option("--cluster", default=None, help="list specific rds cluster")
 @click.option(
     "--no-header", "no_head", is_flag=True, help="do not display table header"
+)
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
 )
 def list(profile, cluster, no_head):
     """List the AWS RDS Aurora clusters"""
@@ -85,6 +92,11 @@ def list(profile, cluster, no_head):
     required=True,
     help="db instance class to use",
 )
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
+)
 def restore(
     profile,
     snapshot_identifier,
@@ -132,6 +144,11 @@ def restore(
     default=False,
     is_flag=True,
     help="wait for cluster destruction",
+)
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
 )
 def delete(profile, snapshot_identifier, cluster_identifier, wait):
     """Delete AWS RDS Aurora cluster"""

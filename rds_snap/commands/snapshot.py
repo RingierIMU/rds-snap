@@ -1,5 +1,4 @@
 from rds_snap.commands.waiters import get_rds_snapshot, seconds_to_duration
-import click
 from .utils import (
     copy_rds_snapshot,
     get_kms_arn,
@@ -12,8 +11,11 @@ from .utils import (
 )
 from datetime import datetime
 from time import perf_counter
+import logging, click, click_log
 
 
+logger = logging.getLogger()
+logger.setLevel(logging.ERROR)
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
@@ -29,6 +31,11 @@ def snapshot():
 @click.option("--today", is_flag=True, help="list cluster snapshots created today")
 @click.option(
     "--no-header", "no_head", is_flag=True, help="do not display table header"
+)
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
 )
 def list(profile, today, no_head):
     """List AWS RDS aurora snapshots"""
@@ -76,6 +83,11 @@ def list(profile, today, no_head):
     "--snapshot-identifier", default=None, required=True, help="identifier for snapshot"
 )
 @click.option("--wait", is_flag=True, help="wait for snapshot creation to complete")
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
+)
 def create(profile, cluster, snapshot_identifier, wait):
     """Create AWS RDS Aurora snapshots"""
     tic = perf_counter()
@@ -103,6 +115,11 @@ def create(profile, cluster, snapshot_identifier, wait):
 @click.option("--profile", default=None, help="aws profile")
 @click.option(
     "--snapshot-identifier", default=None, required=True, help="identifier for snapshot"
+)
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
 )
 def delete(profile, snapshot_identifier):
     """Delete AWS RDS Aurora snapshots"""
@@ -135,6 +152,11 @@ def delete(profile, snapshot_identifier):
     default=None,
     required=True,
     help="aws account number with which to share the snapshot",
+)
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
 )
 def share(profile, snapshot_identifier, account_number):
     """Share AWS RDS Aurora snapshots with another account"""
@@ -183,6 +205,11 @@ def share(profile, snapshot_identifier, account_number):
     help="aws account number with which to share the snapshot",
 )
 @click.option("--wait", is_flag=True, help="wait for snapshot creation to complete")
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
+)
 def copy(source_profile, target_profile, snapshot_identifier, target_kms_alias, wait):
     """Copy AWS RDS Aurora snapshots that have been shared"""
     tic = perf_counter()

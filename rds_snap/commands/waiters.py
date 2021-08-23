@@ -1,8 +1,8 @@
-import logging
 from time import perf_counter
 from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
 from botocore.waiter import create_waiter_with_client
+import logging
 
 
 def get_rds_cluster(cluster_identifier: str, rds):
@@ -41,7 +41,6 @@ class DBClusterWaiter:
         polling_config={"delay": 30, "maxAttempts": 60},
     ) -> None:
         self.logger = logging.getLogger("db_cluster")
-        self.logger.setLevel(logging.WARN)
 
         self.rds_client = rds_client
         self.cluster_config = (
@@ -264,7 +263,7 @@ class DBClusterWaiter:
     def create_cluster_and_wait(self, db_cluster_identifier):
         if not db_cluster_identifier:
             db_cluster_identifier = self.snapshot_info["DBClusterIdentifier"]
-        self.logger.info(f"Creating cluster {db_cluster_identifier}")
+        self.logger.warning(f"Creating cluster {db_cluster_identifier}")
         restore_db_cluster_response = self.rds_client.restore_db_cluster_from_snapshot(
             DBClusterIdentifier=db_cluster_identifier,
             SnapshotIdentifier=self.snapshot_info["DBClusterSnapshotIdentifier"],
@@ -285,7 +284,7 @@ class DBClusterWaiter:
                 f"Something went wrong while restoring db cluster {db_cluster_identifier} from snapshot {self.snapshot_info['DBClusterSnapshotIdentifier']}"
             )
         try:
-            self.logger.info(
+            self.logger.warning(
                 f"Waiting for cluster {db_cluster_identifier} to become available"
             )
             tic = perf_counter()
@@ -294,7 +293,7 @@ class DBClusterWaiter:
             raise Exception(e)
         else:
             toc = perf_counter()
-            self.logger.info(
+            self.logger.warning(
                 f"Cluster {db_cluster_identifier} ready in {seconds_to_duration(toc - tic)}"
             )
             return self.rds_client.describe_db_clusters(
@@ -304,7 +303,7 @@ class DBClusterWaiter:
     def update_password_and_wait(self, db_cluster_identifier):
         if not db_cluster_identifier:
             db_cluster_identifier = self.snapshot_info["DBClusterIdentifier"]
-        self.logger.info(f"Updating password for cluster {db_cluster_identifier}")
+        self.logger.warning(f"Updating password for cluster {db_cluster_identifier}")
         modify_db_cluster_response = self.rds_client.modify_db_cluster(
             DBClusterIdentifier=db_cluster_identifier,
             ApplyImmediately=True,
@@ -322,11 +321,11 @@ class DBClusterWaiter:
             tic = perf_counter()
             self.modifying_start.wait()
             toc = perf_counter()
-            self.logger.info(
+            self.logger.warning(
                 f"Waited for update command to propagate to cluster {db_cluster_identifier} in {seconds_to_duration(toc - tic)}"
             )
             tic = perf_counter()
-            self.logger.info(
+            self.logger.warning(
                 f"Waiting for cluster {db_cluster_identifier} to become available"
             )
             self.modifying_stop.wait()
@@ -334,7 +333,7 @@ class DBClusterWaiter:
             raise Exception(e)
         else:
             toc = perf_counter()
-            self.logger.info(
+            self.logger.warning(
                 f"Cluster {db_cluster_identifier} ready in {seconds_to_duration(toc - tic)}"
             )
             return self.rds_client.describe_db_clusters(
@@ -350,7 +349,7 @@ class DBClusterWaiter:
     ):
         if not db_cluster_identifier:
             raise Exception("db cluster identifier required to delete cluster")
-        self.logger.info(f"Deleting cluster {db_cluster_identifier}")
+        self.logger.warning(f"Deleting cluster {db_cluster_identifier}")
         if skip_snapshot and len(db_snapshot_identifier) == 0:
             db_cluster_response = self.rds_client.delete_db_cluster(
                 DBClusterIdentifier=db_cluster_identifier,
@@ -377,7 +376,7 @@ class DBClusterWaiter:
 
         if wait:
             try:
-                self.logger.info(
+                self.logger.warning(
                     f"Waiting for cluster {db_cluster_identifier} to be deleted"
                 )
                 tic = perf_counter()
@@ -386,11 +385,11 @@ class DBClusterWaiter:
                 raise Exception(e)
             else:
                 toc = perf_counter()
-                self.logger.info(
+                self.logger.warning(
                     f"Cluster {db_cluster_identifier} deleted in {seconds_to_duration(toc - tic)}"
                 )
         else:
-            self.logger.info(
+            self.logger.warning(
                 f"Delete command executed for cluster {db_cluster_identifier}"
             )
 
@@ -403,7 +402,6 @@ class DBInstanceWaiter:
         polling_config={"delay": 30, "maxAttempts": 60},
     ) -> None:
         self.logger = logging.getLogger("db_instance")
-        self.logger.setLevel(logging.WARN)
 
         self.rds_client = rds_client
         self.instance_config = instance_config
@@ -542,7 +540,7 @@ class DBInstanceWaiter:
             db_instance_identifier = (
                 self.cluster_info["DBClusterIdentifier"] + "-instance-0"
             )
-        self.logger.info(f"Creating cluster instance {db_instance_identifier}")
+        self.logger.warning(f"Creating cluster instance {db_instance_identifier}")
         db_cluster_instance_response = self.rds_client.create_db_instance(
             DBInstanceIdentifier=db_instance_identifier,
             DBInstanceClass=self.instance_config["dbInstanceClass"],
@@ -555,7 +553,7 @@ class DBInstanceWaiter:
                 f"Something went wrong while creating db cluster instance {db_instance_identifier} for cluster {self.cluster_info['DBClusterIdentifier']}"
             )
         try:
-            self.logger.info(
+            self.logger.warning(
                 f"Waiting for cluster instance {db_instance_identifier} to become available"
             )
             tic = perf_counter()
@@ -564,7 +562,7 @@ class DBInstanceWaiter:
             raise Exception(e)
         else:
             toc = perf_counter()
-            self.logger.info(
+            self.logger.warning(
                 f"Cluster instance {db_instance_identifier} ready in {seconds_to_duration(toc - tic)}"
             )
             return self.rds_client.describe_db_instances(
@@ -580,7 +578,7 @@ class DBInstanceWaiter:
     ):
         if not db_instance_identifier:
             raise Exception("db instance identifier required to delete instance")
-        self.logger.info(f"Deleting cluster instance {db_instance_identifier}")
+        self.logger.warning(f"Deleting cluster instance {db_instance_identifier}")
         if skip_snapshot and len(db_snapshot_identifier) == 0:
             db_cluster_instance_response = self.rds_client.delete_db_instance(
                 DBInstanceIdentifier=db_instance_identifier,
@@ -603,7 +601,7 @@ class DBInstanceWaiter:
             )
         if wait:
             try:
-                self.logger.info(
+                self.logger.warning(
                     f"Waiting for cluster instance {db_instance_identifier} to be deleted"
                 )
                 tic = perf_counter()
@@ -612,10 +610,10 @@ class DBInstanceWaiter:
                 raise Exception(e)
             else:
                 toc = perf_counter()
-                self.logger.info(
+                self.logger.warning(
                     f"Cluster instance {db_instance_identifier} deleted in {seconds_to_duration(toc - tic)}"
                 )
         else:
-            self.logger.info(
+            self.logger.warning(
                 f"Delete command executed for cluster instance {db_instance_identifier}"
             )
