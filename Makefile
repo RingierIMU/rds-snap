@@ -43,7 +43,7 @@ install:
 	python3 setup.py install
 
 .vscode/settings.json: $(VENV)/bin/activate
-	@mkdir .vscode
+	@mkdir -p .vscode
 	@echo "{\"python.pythonPath\": \"$(VENV)/bin/python\", \"python.terminal.activateEnvInCurrentTerminal\": true}" > .vscode/settings.json
 
 vscode: .vscode/settings.json
