@@ -62,7 +62,6 @@ def create_rds_snapshot(
 ):
     """Create rds snapshot"""
     logger = logging.getLogger("create_rds_snapshot")
-    logger.setLevel(logging.WARN)
     xs = rds.create_db_cluster_snapshot(
         DBClusterSnapshotIdentifier=snapshot_identifier,
         DBClusterIdentifier=cluster_identifier,
@@ -71,7 +70,7 @@ def create_rds_snapshot(
         return xs
     else:
         waiter = rds.get_waiter("db_cluster_snapshot_available")
-        logger.info(
+        logger.warning(
             "Waiting for snapshot {} to be created...".format(
                 xs["DBClusterSnapshotIdentifier"]
             )
@@ -127,7 +126,6 @@ def copy_rds_snapshot(
 ):
     """Copy snapshot from source_snapshot_identifier to target_snapshot_identifier and encrypt using target_kms"""
     logger = logging.getLogger("copy_rds_snapshot")
-    logger.setLevel(logging.WARN)
     xs = rds.copy_db_cluster_snapshot(
         SourceDBClusterSnapshotIdentifier=source_snapshot_identifier,
         TargetDBClusterSnapshotIdentifier=target_snapshot_identifier,
@@ -137,7 +135,7 @@ def copy_rds_snapshot(
         return xs
     else:
         waiter = rds.get_waiter("db_cluster_snapshot_available")
-        logger.info(
+        logger.warning(
             "Waiting for snapshot {} to be created...".format(
                 xs["DBClusterSnapshotIdentifier"]
             )
@@ -191,14 +189,13 @@ def restore_cluster(
     Default is to create a cluster with one instance and wait for all operations to complete before continuing
     """
     logger = logging.getLogger("restore_cluster")
-    logger.setLevel(logging.WARN)
     if not snapshot_identifier:
         raise Exception(
             "snapshot identifier required to specify from which snapshot cluster should be created"
         )
     snapshot_info = get_rds_snapshot(snapshot_identifier, rds)[0]
     if not cluster_identifier:
-        logger.info(
+        logger.warning(
             f"Will use the cluster name from which the snapshot was created by default"
         )
         cluster_identifier = snapshot_info["DBClusterIdentifier"]
@@ -249,10 +246,9 @@ def restore_cluster(
 
 def destroy_cluster(cluster_identifier, snapshot_identifier, wait, rds):
     """Destroy db cluster
-    Default is to destory without creating a snapshot. If snapshot identifier is supplied, we create a snapshot before cluster termination
+    Default is to destroy without creating a snapshot. If snapshot identifier is supplied, we create a snapshot before cluster termination
     """
     logger = logging.getLogger("destroy_cluster")
-    logger.setLevel(logging.WARN)
     if not cluster_identifier:
         raise Exception("cluster identifier required")
     db_cluster_info = get_rds_cluster(cluster_identifier, rds)[0]

@@ -7,7 +7,7 @@ import click, logging
 
 _tool_name = "rds-snap"
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 logging.basicConfig(
     format="[%(asctime)s] "
     + _tool_name
@@ -22,7 +22,7 @@ def version():
 
 def sigint_handler(signal_received, frame):
     """Handle SIGINT or CTRL-C and exit gracefully"""
-    logger.info("SIGINT or CTRL-C detected. Exiting gracefully")
+    logger.warning("SIGINT or CTRL-C detected. Exiting gracefully")
     exit(0)
 
 
