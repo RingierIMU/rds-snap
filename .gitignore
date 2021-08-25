@@ -1,5 +1,6 @@
 .vscode
 .venv
+__pycache__
 dist
 build
 rds_snap.egg-info

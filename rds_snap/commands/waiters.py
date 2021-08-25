@@ -1,4 +1,4 @@
-from time import perf_counter
+from time import sleep, perf_counter
 from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
 from botocore.waiter import create_waiter_with_client
@@ -288,6 +288,7 @@ class DBClusterWaiter:
                 f"Waiting for cluster {db_cluster_identifier} to become available"
             )
             tic = perf_counter()
+            sleep(5)
             self.running.wait()
         except WaiterError as e:
             raise Exception(e)
@@ -319,6 +320,7 @@ class DBClusterWaiter:
             # the command to propagate through AWS :sadparrot:
             # Using the extra wait stage here we avoid magic variables :pray:
             tic = perf_counter()
+            sleep(5)
             self.modifying_start.wait()
             toc = perf_counter()
             self.logger.warning(
@@ -328,6 +330,7 @@ class DBClusterWaiter:
             self.logger.warning(
                 f"Waiting for cluster {db_cluster_identifier} to become available"
             )
+            sleep(5)
             self.modifying_stop.wait()
         except WaiterError as e:
             raise Exception(e)
@@ -375,6 +378,7 @@ class DBClusterWaiter:
             )
 
         if wait:
+            sleep(5)
             try:
                 self.logger.warning(
                     f"Waiting for cluster {db_cluster_identifier} to be deleted"
@@ -557,6 +561,7 @@ class DBInstanceWaiter:
                 f"Waiting for cluster instance {db_instance_identifier} to become available"
             )
             tic = perf_counter()
+            sleep(5)
             self.running.wait()
         except WaiterError as e:
             raise Exception(e)
@@ -605,6 +610,7 @@ class DBInstanceWaiter:
                     f"Waiting for cluster instance {db_instance_identifier} to be deleted"
                 )
                 tic = perf_counter()
+                sleep(5)
                 self.stopped.wait()
             except WaiterError as e:
                 raise Exception(e)

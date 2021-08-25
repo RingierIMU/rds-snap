@@ -3,7 +3,9 @@ from rds_snap.commands.waiters import (
     DBInstanceWaiter,
     get_rds_cluster,
     get_rds_snapshot,
+    seconds_to_duration,
 )
+from time import sleep, perf_counter
 import boto3, logging
 
 
@@ -62,6 +64,41 @@ def create_rds_snapshot(
 ):
     """Create rds snapshot"""
     logger = logging.getLogger("create_rds_snapshot")
+    # More elegant would be custom waiter class for snapshots but time constraints :pray:
+    # if in either available or backing-up can proceed else error
+    cluster_ready = get_rds_clusters(cluster_identifier, rds)[0]["Status"]
+    logger.warning(f"Cluster {cluster_identifier} in {cluster_ready} state")
+    if cluster_ready == "available":
+        pass
+    elif cluster_ready == "backing-up":
+        tic = perf_counter()
+        count = 0
+        delay = 10
+        limit = 100
+        while count < limit:
+            cluster_ready = get_rds_clusters(cluster_identifier, rds)[0]["Status"]
+            toc = perf_counter()
+            if cluster_ready == "available":
+                logger.warning(
+                    f"Cluster {cluster_identifier} transitioned into available from backing-up state after {seconds_to_duration(toc - tic)}"
+                )
+                break
+            elif cluster_ready == "backing-up":
+                sleep(delay)
+            else:
+                logger.exception(
+                    f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready}"
+                )
+            count += 1
+        else:
+            logger.exception(
+                f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready} for longer than {seconds_to_duration(delay*limit)}"
+            )
+    else:
+        logger.exception(
+            f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready}"
+        )
+    # Cluster available
     xs = rds.create_db_cluster_snapshot(
         DBClusterSnapshotIdentifier=snapshot_identifier,
         DBClusterIdentifier=cluster_identifier,
@@ -69,6 +106,7 @@ def create_rds_snapshot(
     if not wait:
         return xs
     else:
+        sleep(5)
         waiter = rds.get_waiter("db_cluster_snapshot_available")
         logger.warning(
             "Waiting for snapshot {} to be created...".format(
@@ -134,6 +172,7 @@ def copy_rds_snapshot(
     if not wait:
         return xs
     else:
+        sleep(5)
         waiter = rds.get_waiter("db_cluster_snapshot_available")
         logger.warning(
             "Waiting for snapshot {} to be created...".format(
