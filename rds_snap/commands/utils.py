@@ -106,6 +106,7 @@ def create_rds_snapshot(
     if not wait:
         return xs
     else:
+        sleep(5)
         waiter = rds.get_waiter("db_cluster_snapshot_available")
         logger.warning(
             "Waiting for snapshot {} to be created...".format(
@@ -171,6 +172,7 @@ def copy_rds_snapshot(
     if not wait:
         return xs
     else:
+        sleep(5)
         waiter = rds.get_waiter("db_cluster_snapshot_available")
         logger.warning(
             "Waiting for snapshot {} to be created...".format(
