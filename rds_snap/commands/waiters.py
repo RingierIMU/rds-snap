@@ -210,12 +210,6 @@ class DBClusterWaiter:
                                 "expected": True,
                                 "matcher": "path",
                                 "state": "failure",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'deleting'",
-                            },
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "failure",
                                 "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'modifying'",
                             },
                             {
