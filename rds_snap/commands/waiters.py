@@ -38,7 +38,7 @@ class DBClusterWaiter:
         cluster_config,
         cluster_identifier,
         creation=True,  # if True we require cluster_config, if False we do not
-        polling_config={"delay": 30, "maxAttempts": 60},
+        polling_config={"delay": 30, "maxAttempts": 120},
     ) -> None:
         self.logger = logging.getLogger("db_cluster")
 
@@ -135,7 +135,7 @@ class DBClusterWaiter:
                     "DBClusterStatus": {
                         "operation": "DescribeDBClusters",
                         "delay": 3,
-                        "maxAttempts": 120,
+                        "maxAttempts": 200,
                         "acceptors": [
                             {
                                 "expected": True,
@@ -386,7 +386,7 @@ class DBInstanceWaiter:
         self,
         rds_client,
         instance_config,
-        polling_config={"delay": 30, "maxAttempts": 60},
+        polling_config={"delay": 30, "maxAttempts": 120},
     ) -> None:
         self.logger = logging.getLogger("db_instance")
 
