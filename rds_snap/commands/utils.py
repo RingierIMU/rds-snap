@@ -241,6 +241,7 @@ def restore_cluster(
     # create cluster
     db_cluster = DBClusterWaiter(
         rds,
+        polling_config={"delay": 30, "maxAttempts": 120},
         cluster_config={
             "snapshotIdentifier": snapshot_identifier,
             "dbClusterInstanceIdentifier": cluster_identifier + "-instance-0",
@@ -261,6 +262,7 @@ def restore_cluster(
     )
     db_instance = DBInstanceWaiter(
         rds,
+        polling_config={"delay": 30, "maxAttempts": 240},
         instance_config={
             "dbClusterIdentifier": db_cluster_info["DBClusterIdentifier"],
             "dbClusterInstanceIdentifier": db_cluster_instance_identifier,
@@ -303,7 +305,7 @@ def destroy_cluster(cluster_identifier, snapshot_identifier, wait, rds):
     for instance in db_cluster_instances:
         db_instance = DBInstanceWaiter(
             rds_client=rds,
-            polling_config={"delay": 30, "maxAttempts": 60},
+            polling_config={"delay": 30, "maxAttempts": 240},
             instance_config={
                 "dbClusterIdentifier": db_cluster_info["DBClusterIdentifier"],
                 "dbClusterInstanceIdentifier": instance["DBInstanceIdentifier"],
@@ -320,7 +322,7 @@ def destroy_cluster(cluster_identifier, snapshot_identifier, wait, rds):
         creation=False,
         cluster_config={},
         cluster_identifier=cluster_identifier,
-        polling_config={"delay": 30, "maxAttempts": 60},
+        polling_config={"delay": 30, "maxAttempts": 120},
     )
     db_cluster.delete_cluster_and_wait(
         db_cluster_identifier=cluster_identifier, skip_snapshot=True, wait=wait
