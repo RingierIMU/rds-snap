@@ -8,10 +8,11 @@ from .utils import (
     create_rds_snapshot,
     delete_rds_snapshot,
     share_rds_snapshot,
+    tag_resource,
 )
 from datetime import datetime
 from time import perf_counter
-import logging, click, click_log
+import logging, click, click_log, json
 
 
 logger = logging.getLogger()
@@ -42,7 +43,11 @@ def list(profile, today, no_head):
     today_timestamp = None
     if today:
         today_timestamp = (datetime.today()).date()
-    xs = get_rds_snapshots(get_rds_client(profile))
+    xs = get_rds_snapshots(
+        cluster_identifier="",
+        cluster_snapshot_identifier="",
+        rds=get_rds_client(profile),
+    )
     header = ", ".join(
         (
             "DBClusterSnapshotIdentifier",
@@ -69,6 +74,35 @@ def list(profile, today, no_head):
         elif not today:
             print(info)
     return
+
+
+@snapshot.command(context_settings=CONTEXT_SETTINGS)
+@click.option("--profile", default=None, help="aws profile")
+@click.option(
+    "--snapshot", default=None, required=True, help="specific rds cluster snapshot"
+)
+@click.option(
+    "--tags", default=None, required=True, help="tags to add to cluster snapshot"
+)
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
+)
+def tag(profile, snapshot, tags):
+    """Add Tags to AWS RDS Aurora cluster snapshots"""
+    tags_json = json.loads(tags)
+    rds_client = get_rds_client(profile)
+    xs = get_rds_snapshots(
+        cluster_identifier="",
+        cluster_snapshot_identifier=snapshot,
+        rds=rds_client,
+    )
+    arns = []
+    for i in xs:
+        arns.append(i["DBClusterSnapshotArn"])
+    for arn in arns:
+        tag_resource(arn_identifier=arn, tags=tags_json, rds=rds_client)
 
 
 @snapshot.command(context_settings=CONTEXT_SETTINGS)

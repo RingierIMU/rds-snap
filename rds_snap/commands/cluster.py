@@ -1,5 +1,11 @@
-from .utils import destroy_cluster, get_rds_clusters, get_rds_client, restore_cluster
-import logging, click, click_log
+from .utils import (
+    destroy_cluster,
+    get_rds_clusters,
+    get_rds_client,
+    restore_cluster,
+    tag_resource,
+)
+import logging, click, click_log, json
 
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
@@ -47,6 +53,39 @@ def list(profile, cluster, no_head):
             )
         )
         print(info)
+
+
+@cluster.command(context_settings=CONTEXT_SETTINGS)
+@click.option("--profile", default=None, help="aws profile")
+@click.option("--cluster", default=None, required=True, help="specific rds cluster")
+@click.option("--tags", default=None, required=True, help="tags to add to cluster")
+@click_log.simple_verbosity_option(
+    logger,
+    default="ERROR",
+    help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
+)
+def tag(profile, cluster, tags):
+    """Add Tags to AWS RDS Aurora clusters"""
+    tags_json = json.loads(tags)
+    rds_client = get_rds_client(profile)
+    xs = get_rds_clusters(cluster_identifier=cluster, rds=rds_client)
+    arns = []
+    for i in xs:
+        arns.append(i["DBClusterArn"])
+        response = rds_client.describe_db_instances(
+            Filters=[
+                {
+                    "Name": "db-cluster-id",
+                    "Values": [
+                        i["DBClusterIdentifier"],
+                    ],
+                },
+            ],
+        )["DBInstances"]
+        for i in response:
+            arns.append(i["DBInstanceArn"])
+    for arn in arns:
+        tag_resource(arn_identifier=arn, tags=tags_json, rds=rds_client)
 
 
 @cluster.command(context_settings=CONTEXT_SETTINGS)
