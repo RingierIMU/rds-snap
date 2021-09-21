@@ -113,7 +113,7 @@ target_snapshot_cycle() {
   rds-snap snapshot create --profile "${SOURCE_AWS_PROFILE:?}" --cluster "${CLUSTER_IDENTIFIER:?}" --snapshot-identifier "${snapshot_identifier:?}" --wait
   rds-snap snapshot share --profile "${SOURCE_AWS_PROFILE:?}" --snapshot-identifier "${snapshot_identifier:?}" --account-number "${target_aws_acc_number:?}"
   rds-snap snapshot copy --source-profile "${SOURCE_AWS_PROFILE:?}" --target-profile "${TARGET_AWS_PROFILE:?}" --snapshot-identifier "${snapshot_identifier:?}" --target-kms-alias "${TARGET_KMS_ALIAS:?}" --wait
-  rds-snap snapshot tag --profile "${TARGET_AWS_PROFILE:?}" --snapshot-identifier "${snapshot_identifier:?}" --tags '{"foo":"bar", "baz":"qux", "fred":"thud"}'
+  rds-snap snapshot tag --profile "${TARGET_AWS_PROFILE:?}" --snapshot "${snapshot_identifier:?}" --tags '{"foo":"bar", "baz":"qux", "fred":"thud"}'
   consolelog "Create snapshot of ${CLUSTER_IDENTIFIER} in ${SOURCE_AWS_PROFILE:?} and copy to ${TARGET_AWS_PROFILE:?} in $(duration $((SECONDS-start)))" success
 }
 
