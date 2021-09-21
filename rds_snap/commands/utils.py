@@ -1,3 +1,4 @@
+from typing import List
 from rds_snap.commands.waiters import (
     DBClusterWaiter,
     DBInstanceWaiter,
@@ -54,8 +55,16 @@ def get_kms_arn(kms_alias: str, kms):
 
 
 # snapshots
-def get_rds_snapshots(rds):
+def get_rds_snapshots(cluster_identifier: str, cluster_snapshot_identifier: str, rds):
     """Return the rds cluster snapshots"""
+    if cluster_identifier:
+        return rds.describe_db_cluster_snapshots(
+            DBClusterIdentifier=cluster_identifier,
+        )["DBClusterSnapshots"]
+    if cluster_snapshot_identifier:
+        return rds.describe_db_cluster_snapshots(
+            DBClusterSnapshotIdentifier=cluster_snapshot_identifier,
+        )["DBClusterSnapshots"]
     return rds.describe_db_cluster_snapshots()["DBClusterSnapshots"]
 
 
@@ -327,3 +336,43 @@ def destroy_cluster(cluster_identifier, snapshot_identifier, wait, rds):
     db_cluster.delete_cluster_and_wait(
         db_cluster_identifier=cluster_identifier, skip_snapshot=True, wait=wait
     )
+
+
+# tags
+def dict_to_aws_tags(tags: dict) -> List:
+    """Create List of AWS Tags
+    Given a dict of key:value pairs return a List in the required format
+    """
+    if not isinstance(tags, dict):
+        raise Exception("tags should be a dict")
+    tags_final = []
+    for k, v in tags.items():
+        item = {}
+        item["Key"] = k
+        item["Value"] = v
+        tags_final.append(item)
+    return tags_final
+
+
+def tag_resource(arn_identifier: str, tags: dict, rds):
+    """Tag resource
+    Given Tag dict and arn of resource add tags to resource identified by arn (only rds resources)
+    """
+    logger = logging.getLogger("tag_resource")
+    if not arn_identifier:
+        raise Exception("resource identifier required")
+    if not tags:
+        raise Exception("tags required")
+    if not isinstance(tags, dict):
+        raise Exception("tags should be a dict")
+    tags_final = dict_to_aws_tags(tags)
+    add_tags_response = "500"
+    try:
+        add_tags_response = rds.add_tags_to_resource(
+            ResourceName=arn_identifier,
+            Tags=tags_final,
+        )["HTTPStatusCode"]
+    except:
+        pass
+    finally:
+        return add_tags_response == "200"

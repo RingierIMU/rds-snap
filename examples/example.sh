@@ -51,18 +51,22 @@ has_cmd() {
 }
 
 duration() {
-	local secs="${1}"
-  local h=0 m=0 s=0
-  h=$((secs/3600))
-  m=$((secs%3600/60))
-  s=$((secs%60))
-  if [[ ${h} -gt 0 ]]; then
-	  printf '%dh:%dm:%ds' "${h}" "${m}" "${s}"
-  elif [[ ${m} -gt 0 ]]; then
-    printf '%dm:%ds' "${m}" "${s}"
-  else
-    printf '%ds' "${s}"
+  local input="${1}"
+  local d=0 h=0 m=0 s=0
+  s=$((input%60))
+  m=$((input/60%60))
+  h=$((input/60/60%24))
+  d=$((input/60/60/24))
+  if [[ ${d} -gt 0 ]]; then
+    printf '%dd' "${d}"
   fi
+  if [[ ${h} -gt 0 ]]; then
+	  printf '%dh' "${h}"
+  fi
+  if [[ ${m} -gt 0 ]]; then
+    printf '%dm' "${m}"
+  fi
+  printf '%ds\n' "${s}"
 }
 
 set -e
@@ -109,6 +113,7 @@ target_snapshot_cycle() {
   rds-snap snapshot create --profile "${SOURCE_AWS_PROFILE:?}" --cluster "${CLUSTER_IDENTIFIER:?}" --snapshot-identifier "${snapshot_identifier:?}" --wait
   rds-snap snapshot share --profile "${SOURCE_AWS_PROFILE:?}" --snapshot-identifier "${snapshot_identifier:?}" --account-number "${target_aws_acc_number:?}"
   rds-snap snapshot copy --source-profile "${SOURCE_AWS_PROFILE:?}" --target-profile "${TARGET_AWS_PROFILE:?}" --snapshot-identifier "${snapshot_identifier:?}" --target-kms-alias "${TARGET_KMS_ALIAS:?}" --wait
+  rds-snap snapshot tag --profile "${TARGET_AWS_PROFILE:?}" --snapshot "${snapshot_identifier:?}" --tags '{"foo":"bar", "baz":"qux", "fred":"thud"}'
   consolelog "Create snapshot of ${CLUSTER_IDENTIFIER} in ${SOURCE_AWS_PROFILE:?} and copy to ${TARGET_AWS_PROFILE:?} in $(duration $((SECONDS-start)))" success
 }
 
@@ -126,6 +131,8 @@ target_cluster_create() {
     --db-cluster-master-password "${CLUSTER_DB_PASSWORD:?}" \
     --db-instance-class "${CLUSTER_INSTANCE_CLASS:?}"
   
+  rds-snap cluster tag --profile "${TARGET_AWS_PROFILE:?}" --cluster "${cluster_identifier:?}" --tags '{"foo":"bar", "baz":"qux", "fred":"thud"}'
+
   consolelog "Create cluster ${cluster_identifier:?} in ${TARGET_AWS_PROFILE} based on ${create_cluster_source_snapshot_identifier:?} in duration $(duration $((SECONDS-start)))" success
 }
 
