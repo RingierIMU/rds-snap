@@ -302,14 +302,20 @@ def destroy_cluster(cluster_identifier, snapshot_identifier, wait, rds):
     if not cluster_identifier:
         raise Exception("cluster identifier required")
     db_cluster_info = get_rds_cluster(cluster_identifier, rds)[0]
-    snapshot_response = create_rds_snapshot(
-        cluster_identifier, snapshot_identifier, True, rds
-    )
-    if not snapshot_response:
-        raise Exception(
-            f"Failed to create snapshot of {cluster_identifier} with identifier {snapshot_identifier}"
+    # create snapshot if snapshot_identifier is supplied
+    if snapshot_identifier:
+        snapshot_response = create_rds_snapshot(
+            cluster_identifier, snapshot_identifier, True, rds
         )
-    # delete db instances
+        if not snapshot_response:
+            raise Exception(
+                f"Failed to create snapshot of {cluster_identifier} with identifier {snapshot_identifier}"
+            )
+    else:
+        logger.info(
+            f"Will not create a snapshot of {cluster_identifier} as snapshot identifier is not supplied"
+        )
+    # delete db instances skipping final snapshot
     db_cluster_instances = db_cluster_info["DBClusterMembers"]
     for instance in db_cluster_instances:
         db_instance = DBInstanceWaiter(
@@ -326,6 +332,7 @@ def destroy_cluster(cluster_identifier, snapshot_identifier, wait, rds):
             wait=False,
         )
 
+    # delete db cluster skipping final snapshot
     db_cluster = DBClusterWaiter(
         rds_client=rds,
         creation=False,

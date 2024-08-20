@@ -169,7 +169,7 @@ def restore(
 @click.option(
     "--snapshot-identifier",
     default=None,
-    required=True,
+    required=False,
     help="name of new rds cluster snapshot",
 )
 @click.option(
@@ -190,11 +190,7 @@ def restore(
     help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
 )
 def delete(profile, snapshot_identifier, cluster_identifier, wait):
-    """Delete AWS RDS Aurora cluster"""
-    if not snapshot_identifier:
-        snapshot_identifier = "staging-horizon-2021-07-29-133932"
-    if not cluster_identifier:
-        cluster_identifier = "staging-horizon-a"
+    """Delete AWS RDS Aurora cluster skipping the final snapshot. If a snapshot identifier is provided, a snapshot will be created before deletion"""
     rds_client = get_rds_client(profile)
     destroy_cluster(
         cluster_identifier,
