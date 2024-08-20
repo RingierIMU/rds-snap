@@ -312,7 +312,7 @@ def destroy_cluster(cluster_identifier, snapshot_identifier, wait, rds):
                 f"Failed to create snapshot of {cluster_identifier} with identifier {snapshot_identifier}"
             )
     else:
-        logger.warning(
+        logger.info(
             f"Will not create a snapshot of {cluster_identifier} as snapshot identifier is not supplied"
         )
     # delete db instances skipping final snapshot
