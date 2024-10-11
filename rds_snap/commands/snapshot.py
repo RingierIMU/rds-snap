@@ -33,18 +33,19 @@ def snapshot():
 @click.option(
     "--no-header", "no_head", is_flag=True, help="do not display table header"
 )
+@click.option("--cluster-identifier", default="", help="RDS cluster identifier")
 @click_log.simple_verbosity_option(
     logger,
     default="ERROR",
     help="Either CRITICAL, ERROR, WARNING, INFO or DEBUG, default is ERROR",
 )
-def list(profile, today, no_head):
+def list(profile, today, no_head, cluster_identifier):
     """List AWS RDS aurora snapshots"""
     today_timestamp = None
     if today:
         today_timestamp = (datetime.today()).date()
     xs = get_rds_snapshots(
-        cluster_identifier="",
+        cluster_identifier=cluster_identifier,
         cluster_snapshot_identifier="",
         rds=get_rds_client(profile),
     )
