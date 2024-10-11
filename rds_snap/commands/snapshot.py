@@ -33,7 +33,7 @@ def snapshot():
 @click.option(
     "--no-header", "no_head", is_flag=True, help="do not display table header"
 )
-@click.option("--cluster-identifier", default="", help="RDS cluster identifier")
+@click.option("--cluster-identifier", default=None, help="RDS cluster identifier")
 @click_log.simple_verbosity_option(
     logger,
     default="ERROR",
