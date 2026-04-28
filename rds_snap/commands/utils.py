@@ -57,15 +57,17 @@ def get_kms_arn(kms_alias: str, kms):
 # snapshots
 def get_rds_snapshots(cluster_identifier: str, cluster_snapshot_identifier: str, rds):
     """Return the rds cluster snapshots"""
+    kwargs = {}
     if cluster_identifier:
-        return rds.describe_db_cluster_snapshots(
-            DBClusterIdentifier=cluster_identifier,
-        )["DBClusterSnapshots"]
-    if cluster_snapshot_identifier:
-        return rds.describe_db_cluster_snapshots(
-            DBClusterSnapshotIdentifier=cluster_snapshot_identifier,
-        )["DBClusterSnapshots"]
-    return rds.describe_db_cluster_snapshots()["DBClusterSnapshots"]
+        kwargs["DBClusterIdentifier"] = cluster_identifier
+    elif cluster_snapshot_identifier:
+        kwargs["DBClusterSnapshotIdentifier"] = cluster_snapshot_identifier
+    paginator = rds.get_paginator("describe_db_cluster_snapshots")
+    return [
+        snapshot
+        for page in paginator.paginate(**kwargs)
+        for snapshot in page["DBClusterSnapshots"]
+    ]
 
 
 def create_rds_snapshot(
