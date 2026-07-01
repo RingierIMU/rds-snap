@@ -128,63 +128,6 @@ class DBClusterWaiter:
             }
         )
 
-        self.cluster_update_start_waiter_model = WaiterModel(
-            {
-                "version": 2,
-                "waiters": {
-                    "DBClusterStatus": {
-                        "operation": "DescribeDBClusters",
-                        "delay": 3,
-                        "maxAttempts": 200,
-                        "acceptors": [
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "retry",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'available'",
-                            },
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "success",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'resetting-master-credentials'",
-                            },
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "failure",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'deleted'",
-                            },
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "failure",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'deleting'",
-                            },
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "failure",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'failed'",
-                            },
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "failure",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'inaccessible-encryption-credentials'",
-                            },
-                            {
-                                "expected": True,
-                                "matcher": "path",
-                                "state": "failure",
-                                "argument": f"DBClusters[?DBClusterIdentifier=='{self.cluster_identifier}'].Status | [0] == 'stopped'",
-                            },
-                        ],
-                    }
-                },
-            }
-        )
-
         self.cluster_stopped_waiter_model = WaiterModel(
             {
                 "version": 2,
@@ -232,9 +175,6 @@ class DBClusterWaiter:
 
         self.running = create_waiter_with_client(
             "DBClusterStatus", self.cluster_running_waiter_model, rds_client
-        )
-        self.modifying_start = create_waiter_with_client(
-            "DBClusterStatus", self.cluster_update_start_waiter_model, rds_client
         )
         self.modifying_stop = create_waiter_with_client(
             "DBClusterStatus", self.cluster_running_waiter_model, rds_client
@@ -299,21 +239,17 @@ class DBClusterWaiter:
                 f"Something went wrong while resetting password for db cluster {db_cluster_identifier}"
             )
         try:
-            # If we do not add the intermediate wait we would have to sleep for at least 12 seconds waiting for
-            # the command to propagate through AWS :sadparrot:
-            # Using the extra wait stage here we avoid magic variables :pray:
+            # modify_db_cluster is synchronous, but the password reset takes
+            # ~12s to propagate through AWS, and Aurora applies it online
+            # without reliably surfacing a 'resetting-master-credentials'
+            # cluster status to observe. So we settle past the propagation
+            # window, then simply wait for the cluster to be 'available' — the
+            # same strategy create_cluster_and_wait uses. See CPE-2769.
             tic = perf_counter()
-            sleep(5)
-            self.modifying_start.wait()
-            toc = perf_counter()
-            self.logger.warning(
-                f"Waited for update command to propagate to cluster {db_cluster_identifier} in {seconds_to_duration(toc - tic)}"
-            )
-            tic = perf_counter()
+            sleep(15)
             self.logger.warning(
                 f"Waiting for cluster {db_cluster_identifier} to become available"
             )
-            sleep(5)
             self.modifying_stop.wait()
         except WaiterError as e:
             raise Exception(e)
