@@ -136,16 +136,20 @@ def create_rds_snapshot(
                         ],
                     },
                 ],
-                WaiterConfig={"Delay": 10, "MaxAttempts": 100},
+                # 1h budget matching restore_cluster; a prod-sized, cross-account
+                # KMS-re-encrypted copy can exceed the old 1000s ceiling. CPE-2769.
+                WaiterConfig={"Delay": 30, "MaxAttempts": 120},
             )
-        except:
+        except Exception:
+            # Propagate the timeout/error instead of returning None: callers must
+            # halt before restoring a still-'copying' snapshot. CPE-2769 / #26.
             logger.exception(
                 "Unable to wait for snapshot {} to be created for cluster {}".format(
                     xs["DBClusterSnapshotIdentifier"], xs["DBClusterIdentifier"]
                 )
             )
-        else:
-            return xs
+            raise
+        return xs
 
 
 def delete_rds_snapshot(snapshot_identifier: str, rds):
@@ -202,16 +206,20 @@ def copy_rds_snapshot(
                         ],
                     },
                 ],
-                WaiterConfig={"Delay": 10, "MaxAttempts": 100},
+                # 1h budget matching restore_cluster; a prod-sized, cross-account
+                # KMS-re-encrypted copy can exceed the old 1000s ceiling. CPE-2769.
+                WaiterConfig={"Delay": 30, "MaxAttempts": 120},
             )
-        except:
+        except Exception:
+            # Propagate the timeout/error instead of returning None: callers must
+            # halt before restoring a still-'copying' snapshot. CPE-2769 / #26.
             logger.exception(
                 "Unable to wait for snapshot {} to be created for cluster {}".format(
                     xs["DBClusterSnapshotIdentifier"], xs["DBClusterIdentifier"]
                 )
             )
-        else:
-            return xs
+            raise
+        return xs
 
 
 # clusters
@@ -244,6 +252,15 @@ def restore_cluster(
             "snapshot identifier required to specify from which snapshot cluster should be created"
         )
     snapshot_info = get_rds_snapshot(snapshot_identifier, rds)[0]
+    # Belt-and-braces: refuse to restore from a snapshot that is not fully
+    # 'available' (e.g. still 'copying'/'creating'), failing here with a clear
+    # message instead of letting botocore raise InvalidDBClusterSnapshotStateFault
+    # deep inside restore_db_cluster_from_snapshot. CPE-2769 / #26.
+    if snapshot_info["Status"] != "available":
+        raise Exception(
+            f"Cannot restore from snapshot {snapshot_identifier}: its status is "
+            f"'{snapshot_info['Status']}', but must be 'available' before restore"
+        )
     if not cluster_identifier:
         logger.warning(
             f"Will use the cluster name from which the snapshot was created by default"

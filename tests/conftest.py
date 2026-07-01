@@ -4,7 +4,7 @@ import boto3
 import pytest
 from botocore.stub import Stubber
 
-from rds_snap.commands import waiters
+from rds_snap.commands import utils, waiters
 
 CLUSTER_ID = "prod-horizon"
 SNAPSHOT_ID = "prod-horizon-snap"
@@ -31,6 +31,23 @@ def cluster(status, cluster_id=CLUSTER_ID):
     return {"DBClusters": [{"DBClusterIdentifier": cluster_id, "Status": status}]}
 
 
+def snapshot(status, snapshot_id=SNAPSHOT_ID, cluster_id=CLUSTER_ID):
+    """A single-snapshot describe_db_cluster_snapshots payload with the given status.
+
+    This is what the built-in db_cluster_snapshot_available waiter polls; 'copying'
+    /'creating' are (implicit) retry states, 'available' is success.
+    """
+    return {
+        "DBClusterSnapshots": [
+            {
+                "DBClusterSnapshotIdentifier": snapshot_id,
+                "DBClusterIdentifier": cluster_id,
+                "Status": status,
+            }
+        ]
+    }
+
+
 @pytest.fixture
 def rds_client():
     return boto3.client(
@@ -54,6 +71,38 @@ def slept(monkeypatch):
     monkeypatch.setattr(waiters, "sleep", lambda seconds: recorded.append(seconds))
     monkeypatch.setattr(time, "sleep", lambda *args, **kwargs: None)
     return recorded
+
+
+@pytest.fixture
+def utils_no_sleep(monkeypatch):
+    """Neutralise real waiting on the utils snapshot paths so the real
+    db_cluster_snapshot_available waiter runs instantly:
+
+    - the settle sleep(5) imported into rds_snap.commands.utils -> no-op, and
+    - botocore's internal per-poll waiter delay (time.sleep) -> recorded, not slept.
+
+    Returns the list of per-poll delays (seconds) botocore requested, so a test
+    can assert the waiter budget's Delay, not only its MaxAttempts.
+    """
+    poll_delays = []
+    monkeypatch.setattr(utils, "sleep", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        time, "sleep", lambda seconds=0, *args, **kwargs: poll_delays.append(seconds)
+    )
+    return poll_delays
+
+
+@pytest.fixture
+def stubbed_rds(rds_client):
+    """A botocore Stubber over a real rds client, yielded as (rds_client, stubber).
+
+    The test queues each API response its scenario needs, in call order; the real
+    boto3 waiter machinery consumes them exactly as production does.
+    """
+    stubber = Stubber(rds_client)
+    stubber.activate()
+    yield rds_client, stubber
+    stubber.deactivate()
 
 
 @pytest.fixture
