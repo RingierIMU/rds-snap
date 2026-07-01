@@ -6,7 +6,7 @@ PIP = $(VENV)/bin/pip
 # DIRECTORY = $(sort $(dir $(wildcard */)))
 # MAIN_DIR = $(shell find . -maxdepth 1 -mindepth 1 -type d -not -iname '.git*')
 
-.PHONY: clean fmt
+.PHONY: clean fmt test
 
 .DEFAULT_GOAL = help
 
@@ -16,6 +16,7 @@ help:
 	@echo "To build the project type make build"
 	@echo "To install the project type make install"
 	@echo "To format the project type make fmt"
+	@echo "To test the project type make test"
 	@echo "To clean the project type make clean"
 	@echo "------------------------------------"
 
@@ -50,6 +51,9 @@ vscode: .vscode/settings.json
 
 fmt: $(VENV)/bin/activate
 	$(PYTHON) -m black .
+
+test: $(VENV)/bin/activate
+	$(PYTHON) -m pytest
 
 publish: dist
 	$(PYTHON) -m twine upload dist/*
