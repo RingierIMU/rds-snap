@@ -131,6 +131,12 @@ def tag(profile, cluster, tags):
     required=True,
     help="db instance class to use",
 )
+@click.option(
+    "--max-wait-minutes",
+    type=click.IntRange(min=1),
+    default=None,
+    help="maximum minutes to wait for the restored cluster/instance to become available, as one budget shared by the cluster, password-reset and instance waits; when omitted the built-in ceilings apply: cluster 60m, instance 120m",
+)
 @click_log.simple_verbosity_option(
     logger,
     default="ERROR",
@@ -145,6 +151,7 @@ def restore(
     db_cluster_parameter_group_name,
     db_cluster_master_password,
     db_instance_class,
+    max_wait_minutes,
 ):
     """Restore AWS RDS Aurora cluster from snapshot"""
     if not snapshot_identifier:
@@ -161,6 +168,7 @@ def restore(
         db_cluster_master_password,
         db_instance_class,
         rds_client,
+        max_wait_minutes=max_wait_minutes,
     )
 
 

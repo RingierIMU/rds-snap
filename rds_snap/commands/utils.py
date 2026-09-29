@@ -7,7 +7,8 @@ from rds_snap.commands.waiters import (
     seconds_to_duration,
 )
 from time import sleep, perf_counter
-import boto3, logging
+from math import ceil
+import boto3, logging, time
 
 
 def get_session(profile: str) -> boto3.Session:
@@ -233,6 +234,27 @@ def get_rds_clusters(cluster_identifier: str, rds):
         return rds.describe_db_clusters()["DBClusters"]
 
 
+def polling_config_for(
+    max_wait_minutes,
+    default_max_attempts: int,
+    delay: int = 30,
+    remaining_seconds=None,
+) -> dict:
+    """Waiter polling_config for a restore wait.
+
+    With no max_wait_minutes the built-in default_max_attempts ceiling applies.
+    Otherwise the budget is max(1, ceil(remaining / delay)) attempts, where
+    remaining is remaining_seconds of the shared deadline (defaulting to the
+    whole max_wait_minutes). A spent budget still yields 1 attempt.
+    """
+    if max_wait_minutes is None:
+        return {"delay": delay, "maxAttempts": default_max_attempts}
+    remaining = (
+        max_wait_minutes * 60 if remaining_seconds is None else remaining_seconds
+    )
+    return {"delay": delay, "maxAttempts": max(1, ceil(remaining / delay))}
+
+
 def restore_cluster(
     snapshot_identifier: str,
     cluster_identifier: str,
@@ -242,11 +264,23 @@ def restore_cluster(
     db_cluster_master_password: str,
     db_instance_class: str,
     rds,
+    max_wait_minutes=None,
 ):
     """Restore cluster from snapshot:
     Default is to create a cluster with one instance and wait for all operations to complete before continuing
+
+    max_wait_minutes is ONE shared deadline for the whole restore: each waiter is
+    sized from the time left when it is constructed. When None the built-in
+    ceilings apply: cluster 120 x 30s (60m), instance 240 x 30s (120m).
     """
     logger = logging.getLogger("restore_cluster")
+    start = time.monotonic() if max_wait_minutes is not None else None
+
+    def remaining_seconds():
+        if start is None:
+            return None
+        return max_wait_minutes * 60 - (time.monotonic() - start)
+
     if not snapshot_identifier:
         raise Exception(
             "snapshot identifier required to specify from which snapshot cluster should be created"
@@ -267,9 +301,14 @@ def restore_cluster(
         )
         cluster_identifier = snapshot_info["DBClusterIdentifier"]
     # create cluster
+    # NOTE: update_password_and_wait (below) reuses this waiter's running model,
+    # so the password-reset wait gets the budget computed here, not the time
+    # left after the instance wait. Acceptable: the reset is short (seconds).
     db_cluster = DBClusterWaiter(
         rds,
-        polling_config={"delay": 30, "maxAttempts": 120},
+        polling_config=polling_config_for(
+            max_wait_minutes, 120, remaining_seconds=remaining_seconds()
+        ),
         cluster_config={
             "snapshotIdentifier": snapshot_identifier,
             "dbClusterInstanceIdentifier": cluster_identifier + "-instance-0",
@@ -290,7 +329,9 @@ def restore_cluster(
     )
     db_instance = DBInstanceWaiter(
         rds,
-        polling_config={"delay": 30, "maxAttempts": 240},
+        polling_config=polling_config_for(
+            max_wait_minutes, 240, remaining_seconds=remaining_seconds()
+        ),
         instance_config={
             "dbClusterIdentifier": db_cluster_info["DBClusterIdentifier"],
             "dbClusterInstanceIdentifier": db_cluster_instance_identifier,
