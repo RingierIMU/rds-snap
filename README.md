@@ -35,6 +35,15 @@ This will create an environment, format and build the tool.
 # Usage
 The [example shell script](https://github.com/RingierIMU/rds-snap/blob/main/examples/example.sh) outlines some common uses.
 
+# Exit codes
+Commands exit `0` on success and `1` on a clean, intentional failure (a `click` error message is printed to stderr prefixed with `Error:`). Unexpected exceptions, including a `WaiterError` when a snapshot never becomes `available`, still propagate as a non-zero exit.
+
+| Command | Exit `0` | Exit `1` |
+| --- | --- | --- |
+| `snapshot tag` | All matching snapshots tagged. Also when no snapshot matches `--snapshot` (a warning is printed to stderr and nothing is tagged). | AWS rejects the tag call (for example access denied or throttling). |
+| `cluster tag` | The cluster ARN and every instance ARN are tagged. | AWS rejects any describe or tag call; the failing ARN is named. |
+| `snapshot create` | Snapshot created (or, with `--wait`, created and `available`). | Cluster not found, cluster in a state other than `available`/`backing-up`, or the cluster stays `backing-up` for longer than the poll budget. No snapshot is requested in these cases. A `--wait` timeout still raises `WaiterError` (non-zero). |
+
 # Output
 Sample output while recreating a cluster from and snapshot:
 ```bash

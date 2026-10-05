@@ -12,6 +12,7 @@ from .utils import (
 )
 from datetime import datetime
 from time import perf_counter
+from botocore.exceptions import ClientError
 import logging, click, click_log, json
 
 
@@ -94,16 +95,27 @@ def tag(profile, snapshot, tags):
     """Add Tags to AWS RDS Aurora cluster snapshots"""
     tags_json = json.loads(tags)
     rds_client = get_rds_client(profile)
-    xs = get_rds_snapshots(
-        cluster_identifier="",
-        cluster_snapshot_identifier=snapshot,
-        rds=rds_client,
-    )
-    arns = []
-    for i in xs:
-        arns.append(i["DBClusterSnapshotArn"])
-    for arn in arns:
-        tag_resource(arn_identifier=arn, tags=tags_json, rds=rds_client)
+    try:
+        xs = get_rds_snapshots(
+            cluster_identifier="",
+            cluster_snapshot_identifier=snapshot,
+            rds=rds_client,
+        )
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "DBClusterSnapshotNotFoundFault":
+            xs = []
+        else:
+            logger.exception(f"Unable to describe snapshot {snapshot}")
+            raise click.ClickException(f"Unable to describe snapshot {snapshot}: {e}")
+    if not xs:
+        click.echo(f"Warning: no snapshots matched {snapshot}, nothing to tag", err=True)
+        return
+    for arn in (i["DBClusterSnapshotArn"] for i in xs):
+        try:
+            tag_resource(arn_identifier=arn, tags=tags_json, rds=rds_client)
+        except ClientError as e:
+            logger.exception(f"Unable to tag snapshot {arn}")
+            raise click.ClickException(f"Unable to tag snapshot {arn}: {e}")
 
 
 @snapshot.command(context_settings=CONTEXT_SETTINGS)
@@ -132,18 +144,15 @@ def create(profile, cluster, snapshot_identifier, wait):
         wait=wait,
         rds=get_rds_client(profile),
     )
-    if xs:
-        if wait:
-            toc = perf_counter()
-            print(
-                "Created snapshot {} in {}".format(
-                    xs["DBClusterSnapshotIdentifier"], seconds_to_duration(toc - tic)
-                )
+    if wait:
+        toc = perf_counter()
+        print(
+            "Created snapshot {} in {}".format(
+                xs["DBClusterSnapshotIdentifier"], seconds_to_duration(toc - tic)
             )
-        else:
-            print("Creating snapshot {}".format(xs["DBClusterSnapshotIdentifier"]))
+        )
     else:
-        print("Something went wrong creating snapshot {}".format(snapshot_identifier))
+        print("Creating snapshot {}".format(xs["DBClusterSnapshotIdentifier"]))
 
 
 @snapshot.command(context_settings=CONTEXT_SETTINGS)
@@ -259,15 +268,12 @@ def copy(source_profile, target_profile, snapshot_identifier, target_kms_alias, 
         wait,
         get_rds_client(target_profile),
     )
-    if x:
-        if wait:
-            toc = perf_counter()
-            print(
-                "Created snapshot {} in {}".format(
-                    x["DBClusterSnapshotIdentifier"], seconds_to_duration(toc - tic)
-                )
+    if wait:
+        toc = perf_counter()
+        print(
+            "Created snapshot {} in {}".format(
+                x["DBClusterSnapshotIdentifier"], seconds_to_duration(toc - tic)
             )
-        else:
-            print("Creating snapshot {}".format(x["DBClusterSnapshotIdentifier"]))
+        )
     else:
-        print("Something went wrong creating snapshot {}".format(snapshot_identifier))
+        print("Creating snapshot {}".format(x["DBClusterSnapshotIdentifier"]))

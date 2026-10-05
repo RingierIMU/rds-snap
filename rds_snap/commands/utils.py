@@ -8,7 +8,8 @@ from rds_snap.commands.waiters import (
 )
 from time import sleep, perf_counter
 from math import ceil
-import boto3, logging, time
+import boto3, logging, time, click
+from botocore.exceptions import ClientError
 
 
 def get_session(profile: str) -> boto3.Session:
@@ -78,17 +79,30 @@ def create_rds_snapshot(
     logger = logging.getLogger("create_rds_snapshot")
     # More elegant would be custom waiter class for snapshots but time constraints :pray:
     # if in either available or backing-up can proceed else error
-    cluster_ready = get_rds_clusters(cluster_identifier, rds)[0]["Status"]
+    def cluster_status():
+        try:
+            clusters = get_rds_clusters(cluster_identifier, rds)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "DBClusterNotFoundFault":
+                clusters = []
+            else:
+                raise
+        if not clusters:
+            logger.error(f"Cluster {cluster_identifier} not found")
+            raise click.ClickException(f"Cluster {cluster_identifier} not found")
+        return clusters[0]["Status"]
+
+    cluster_ready = cluster_status()
     logger.warning(f"Cluster {cluster_identifier} in {cluster_ready} state")
     if cluster_ready == "available":
         pass
     elif cluster_ready == "backing-up":
         tic = perf_counter()
-        count = 0
         delay = 10
         limit = 100
-        while count < limit:
-            cluster_ready = get_rds_clusters(cluster_identifier, rds)[0]["Status"]
+        for _ in range(limit):
+            sleep(delay)
+            cluster_ready = cluster_status()
             toc = perf_counter()
             if cluster_ready == "available":
                 logger.warning(
@@ -96,18 +110,26 @@ def create_rds_snapshot(
                 )
                 break
             elif cluster_ready == "backing-up":
-                sleep(delay)
+                continue
             else:
-                logger.exception(
+                logger.error(
                     f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready}"
                 )
-            count += 1
+                raise click.ClickException(
+                    f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready}"
+                )
         else:
-            logger.exception(
-                f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready} for longer than {seconds_to_duration(delay*limit)}"
+            logger.error(
+                f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready} for longer than {seconds_to_duration(delay * limit)}"
+            )
+            raise click.ClickException(
+                f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready} for longer than {seconds_to_duration(delay * limit)}"
             )
     else:
-        logger.exception(
+        logger.error(
+            f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready}"
+        )
+        raise click.ClickException(
             f"Can not backup cluster {cluster_identifier} which is in state {cluster_ready}"
         )
     # Cluster available
@@ -425,7 +447,6 @@ def tag_resource(arn_identifier: str, tags: dict, rds):
     """Tag resource
     Given Tag dict and arn of resource add tags to resource identified by arn (only rds resources)
     """
-    logger = logging.getLogger("tag_resource")
     if not arn_identifier:
         raise Exception("resource identifier required")
     if not tags:
@@ -433,13 +454,4 @@ def tag_resource(arn_identifier: str, tags: dict, rds):
     if not isinstance(tags, dict):
         raise Exception("tags should be a dict")
     tags_final = dict_to_aws_tags(tags)
-    add_tags_response = "500"
-    try:
-        add_tags_response = rds.add_tags_to_resource(
-            ResourceName=arn_identifier,
-            Tags=tags_final,
-        )["HTTPStatusCode"]
-    except:
-        pass
-    finally:
-        return add_tags_response == "200"
+    rds.add_tags_to_resource(ResourceName=arn_identifier, Tags=tags_final)

@@ -6,6 +6,7 @@ from .utils import (
     tag_resource,
 )
 import logging, click, click_log, json
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
@@ -68,24 +69,32 @@ def tag(profile, cluster, tags):
     """Add Tags to AWS RDS Aurora clusters"""
     tags_json = json.loads(tags)
     rds_client = get_rds_client(profile)
-    xs = get_rds_clusters(cluster_identifier=cluster, rds=rds_client)
-    arns = []
-    for i in xs:
-        arns.append(i["DBClusterArn"])
-        response = rds_client.describe_db_instances(
-            Filters=[
-                {
-                    "Name": "db-cluster-id",
-                    "Values": [
-                        i["DBClusterIdentifier"],
-                    ],
-                },
-            ],
-        )["DBInstances"]
-        for i in response:
-            arns.append(i["DBInstanceArn"])
+    try:
+        xs = get_rds_clusters(cluster_identifier=cluster, rds=rds_client)
+        arns = []
+        for i in xs:
+            arns.append(i["DBClusterArn"])
+            response = rds_client.describe_db_instances(
+                Filters=[
+                    {
+                        "Name": "db-cluster-id",
+                        "Values": [
+                            i["DBClusterIdentifier"],
+                        ],
+                    },
+                ],
+            )["DBInstances"]
+            for instance in response:
+                arns.append(instance["DBInstanceArn"])
+    except ClientError as e:
+        logger.exception(f"Unable to describe cluster {cluster}")
+        raise click.ClickException(f"Unable to describe cluster {cluster}: {e}")
     for arn in arns:
-        tag_resource(arn_identifier=arn, tags=tags_json, rds=rds_client)
+        try:
+            tag_resource(arn_identifier=arn, tags=tags_json, rds=rds_client)
+        except ClientError as e:
+            logger.exception(f"Unable to tag resource {arn}")
+            raise click.ClickException(f"Unable to tag resource {arn}: {e}")
 
 
 @cluster.command(context_settings=CONTEXT_SETTINGS)
