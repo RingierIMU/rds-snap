@@ -43,6 +43,8 @@ Commands exit `0` on success and `1` on a clean, intentional failure (a `click` 
 | `snapshot tag` | All matching snapshots tagged. Also when no snapshot matches `--snapshot` (a warning is printed to stderr and nothing is tagged). | AWS rejects the tag call (for example access denied or throttling). |
 | `cluster tag` | The cluster ARN and every instance ARN are tagged. | AWS rejects any describe or tag call; the failing ARN is named. |
 | `snapshot create` | Snapshot created (or, with `--wait`, created and `available`). | Cluster not found, cluster in a state other than `available`/`backing-up`, or the cluster stays `backing-up` for longer than the poll budget. No snapshot is requested in these cases. A `--wait` timeout still raises `WaiterError` (non-zero). |
+| `snapshot delete` | Snapshot deleted. Also when the snapshot does not exist (`snapshot <id> not found, nothing to delete` is printed to stderr), so delete is idempotent. | Snapshot in an invalid state, or AWS rejects the delete call for any other reason. The message names the snapshot and the AWS error. |
+| `snapshot share` | Snapshot attribute updated for the target account (`Successfully shared ...`). | Any error from AWS. The message names the snapshot, the target account and the AWS error. |
 
 # Output
 Sample output while recreating a cluster from and snapshot:
