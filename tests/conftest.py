@@ -52,6 +52,39 @@ def cluster(status, cluster_id=CLUSTER_ID):
     }
 
 
+def cluster_with_members(status, members, cluster_id=CLUSTER_ID):
+    """A single-cluster describe_db_clusters payload with DBClusterMembers.
+
+    members is a list of (instance_id, is_writer) tuples.
+    """
+    return {
+        "DBClusters": [
+            {
+                "DBClusterIdentifier": cluster_id,
+                "Status": status,
+                "DBClusterMembers": [
+                    {"DBInstanceIdentifier": instance_id, "IsClusterWriter": is_writer}
+                    for instance_id, is_writer in members
+                ],
+            }
+        ]
+    }
+
+
+def instances(statuses, cluster_id=CLUSTER_ID):
+    """A describe_db_instances payload; statuses is {instance_id: status}."""
+    return {
+        "DBInstances": [
+            {
+                "DBInstanceIdentifier": instance_id,
+                "DBInstanceStatus": status,
+                "DBClusterIdentifier": cluster_id,
+            }
+            for instance_id, status in statuses.items()
+        ]
+    }
+
+
 def snapshot(status, snapshot_id=SNAPSHOT_ID, cluster_id=CLUSTER_ID):
     """A single-snapshot describe_db_cluster_snapshots payload with the given status.
 
