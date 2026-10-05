@@ -9,6 +9,19 @@ from rds_snap.commands import utils, waiters
 CLUSTER_ID = "prod-horizon"
 SNAPSHOT_ID = "prod-horizon-snap"
 MASTER_PASSWORD = "s3cr3t-pw"
+ARN_PREFIX = "arn:aws:rds:eu-west-1:111122223333"
+
+
+def cluster_arn(cluster_id=CLUSTER_ID):
+    return f"{ARN_PREFIX}:cluster:{cluster_id}"
+
+
+def snapshot_arn(snapshot_id=SNAPSHOT_ID):
+    return f"{ARN_PREFIX}:cluster-snapshot:{snapshot_id}"
+
+
+def instance_arn(instance_id):
+    return f"{ARN_PREFIX}:db:{instance_id}"
 
 
 def _snapshot_response(snapshot_id=SNAPSHOT_ID, cluster_id=CLUSTER_ID):
@@ -28,7 +41,15 @@ def _snapshot_response(snapshot_id=SNAPSHOT_ID, cluster_id=CLUSTER_ID):
 
 def cluster(status, cluster_id=CLUSTER_ID):
     """A single-cluster describe_db_clusters payload with the given status."""
-    return {"DBClusters": [{"DBClusterIdentifier": cluster_id, "Status": status}]}
+    return {
+        "DBClusters": [
+            {
+                "DBClusterIdentifier": cluster_id,
+                "DBClusterArn": cluster_arn(cluster_id),
+                "Status": status,
+            }
+        ]
+    }
 
 
 def snapshot(status, snapshot_id=SNAPSHOT_ID, cluster_id=CLUSTER_ID):
@@ -42,6 +63,7 @@ def snapshot(status, snapshot_id=SNAPSHOT_ID, cluster_id=CLUSTER_ID):
             {
                 "DBClusterSnapshotIdentifier": snapshot_id,
                 "DBClusterIdentifier": cluster_id,
+                "DBClusterSnapshotArn": snapshot_arn(snapshot_id),
                 "Status": status,
             }
         ]

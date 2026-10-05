@@ -21,7 +21,7 @@ def test_returns_when_cluster_stays_available_throughout(waiter_and_stubber):
 
     result = waiter.update_password_and_wait(CLUSTER_ID)
 
-    assert result == [{"DBClusterIdentifier": CLUSTER_ID, "Status": "available"}]
+    assert result == cluster("available")["DBClusters"]
     stubber.assert_no_pending_responses()
 
 
@@ -74,5 +74,5 @@ def test_retries_through_transient_states_then_returns(waiter_and_stubber):
 
     result = waiter.update_password_and_wait(CLUSTER_ID)
 
-    assert result == [{"DBClusterIdentifier": CLUSTER_ID, "Status": "available"}]
+    assert result == cluster("available")["DBClusters"]
     stubber.assert_no_pending_responses()
