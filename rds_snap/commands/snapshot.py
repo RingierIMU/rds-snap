@@ -171,12 +171,23 @@ def delete(profile, snapshot_identifier):
     client = get_rds_client(profile)
     try:
         xs = delete_rds_snapshot(snapshot_identifier, client)
-    except client.exceptions.DBClusterSnapshotNotFoundFault as e:
-        print(f"Snapshot not found error: {e}")
+    except client.exceptions.DBClusterSnapshotNotFoundFault:
+        click.echo(
+            "snapshot {} not found, nothing to delete".format(snapshot_identifier),
+            err=True,
+        )
     except client.exceptions.InvalidDBClusterSnapshotStateFault as e:
-        print(f"Encountered invalid snapshot state: {e}")
+        logger.exception("Invalid state for snapshot {}".format(snapshot_identifier))
+        raise click.ClickException(
+            "Could not delete snapshot {}, invalid snapshot state: {}".format(
+                snapshot_identifier, e
+            )
+        )
     except Exception as e:
-        print("Could not delete snapshot {}: {}".format(snapshot_identifier, e))
+        logger.exception("Could not delete snapshot {}".format(snapshot_identifier))
+        raise click.ClickException(
+            "Could not delete snapshot {}: {}".format(snapshot_identifier, e)
+        )
     else:
         toc = perf_counter()
         print(
@@ -209,10 +220,15 @@ def share(profile, snapshot_identifier, account_number):
         xs = share_rds_snapshot(
             snapshot_identifier, account_number, get_rds_client(profile)
         )
-    except:
-        print(
+    except Exception as e:
+        logger.exception(
             "Could not share snapshot {} with aws account {}".format(
                 snapshot_identifier, account_number
+            )
+        )
+        raise click.ClickException(
+            "Could not share snapshot {} with aws account {}: {}".format(
+                snapshot_identifier, account_number, e
             )
         )
     else:
